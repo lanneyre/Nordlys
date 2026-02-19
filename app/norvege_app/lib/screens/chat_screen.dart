@@ -27,6 +27,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   final List<ChatMessage> _messages = [];
 
+  String? _currentLevel;
+
   bool _isLoading = false;
 
   @override
@@ -63,6 +65,14 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isLoading = true);
     final l10n = AppLocalizations.of(context)!;
     try {
+      // Récupérer le niveau courant de l'utilisateur pour gérer certaines activités (ex: débat B1+)
+      try {
+        final profile = await _authService.getProfile();
+        _currentLevel = profile['current_level']?.toString();
+      } catch (e) {
+        // Ne pas bloquer si impossible de récupérer le profil
+        AppLogger.error('Impossible de récupérer le profil: $e');
+      }
       final response = await _aiService.generateLesson(
         l10n.chatHello,
         saveToLog: false,
@@ -247,6 +257,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           _controller.text = text;
                           _sendMessage();
                         },
+                        userLevel: _currentLevel,
                       );
                     },
                   ),
