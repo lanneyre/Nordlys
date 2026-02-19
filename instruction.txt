@@ -1,0 +1,3 @@
+supabase functions new hello-world
+supabase functions deploy hello-world --project-ref zhjgwaqxdhqsoacrjcgt
+curl -L -X POST 'https://zhjgwaqxdhqsoacrjcgt.supabase.co/functions/v1/hello-world' -H 'Authorization: Bearer sb_publishable_-Cg0BWGhBE4IQ8AyvzTs4A_Yxa4oknh' --data '{"name":"Functions"}'git add README.md
