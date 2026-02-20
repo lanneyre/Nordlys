@@ -68,6 +68,17 @@
     "levelMotivationB2": "Very fluent! Norway has no more secrets. 🇳🇴",
     "levelMotivationC1": "Expert level reached! Almost bilingual. 🎓",
     "levelMotivationC2": "Total mastery. Gratulerer! 👑",
-    "levelMotivationDefault": "Keep it up! 💪"
+    "levelMotivationDefault": "Keep it up! 💪",
+    "chatComprehensionTask": "Listening comprehension — task: ",
+    "chatTranscriptionAvailable": "Reference transcription available.",
+    "chatOpenTranscription": "Open transcription in input field",
+    "chatListenInstruction": "Listen to the audio and transcribe or summarize as instructed.",
+    "chatDebateLevelRequired": "The debate requires this level: ",
+    "chatDebateYourLevel": "Your current level: ",
+    "chatDebateGuidedProposal": "I suggest a guided version (step-by-step discussion) instead.",
+    "chatDebateContinueGuided": "Continue with the guided version",
+    "chatDebateUserChoice": "I choose the guided version of the debate.",
+    "chatImageGenerating": "The AI is painting your image...",
+    "chatImageGenerationError": "The painter ran out of brushes... 🎨❌"
 
 }

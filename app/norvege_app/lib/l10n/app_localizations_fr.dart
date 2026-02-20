@@ -234,4 +234,42 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get levelMotivationDefault => 'Continuez comme ça ! 💪';
+
+  @override
+  String get chatComprehensionTask => 'Compréhension orale — tâche : ';
+
+  @override
+  String get chatTranscriptionAvailable =>
+      'Transcription de référence disponible.';
+
+  @override
+  String get chatOpenTranscription =>
+      'Ouvrir la transcription dans le champ de saisie';
+
+  @override
+  String get chatListenInstruction =>
+      'Écoute le passage et transcris ou résume selon la consigne.';
+
+  @override
+  String get chatDebateLevelRequired => 'Le débat nécessite ce niveau : ';
+
+  @override
+  String get chatDebateYourLevel => 'Votre niveau actuel : ';
+
+  @override
+  String get chatDebateGuidedProposal =>
+      'Je propose une version guidée (discussion pas à pas) à la place.';
+
+  @override
+  String get chatDebateContinueGuided => 'Continuer avec la version guidée';
+
+  @override
+  String get chatDebateUserChoice => 'Je choisis la version guidée du débat.';
+
+  @override
+  String get chatImageGenerating => 'L\'IA peint votre image...';
+
+  @override
+  String get chatImageGenerationError =>
+      'Le peintre a eu une panne de pinceaux... 🎨❌';
 }

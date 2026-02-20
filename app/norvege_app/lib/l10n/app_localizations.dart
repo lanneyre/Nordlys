@@ -511,6 +511,72 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Continuez comme ça ! 💪'**
   String get levelMotivationDefault;
+
+  /// No description provided for @chatComprehensionTask.
+  ///
+  /// In fr, this message translates to:
+  /// **'Compréhension orale — tâche : '**
+  String get chatComprehensionTask;
+
+  /// No description provided for @chatTranscriptionAvailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Transcription de référence disponible.'**
+  String get chatTranscriptionAvailable;
+
+  /// No description provided for @chatOpenTranscription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ouvrir la transcription dans le champ de saisie'**
+  String get chatOpenTranscription;
+
+  /// No description provided for @chatListenInstruction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Écoute le passage et transcris ou résume selon la consigne.'**
+  String get chatListenInstruction;
+
+  /// No description provided for @chatDebateLevelRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le débat nécessite ce niveau : '**
+  String get chatDebateLevelRequired;
+
+  /// No description provided for @chatDebateYourLevel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre niveau actuel : '**
+  String get chatDebateYourLevel;
+
+  /// No description provided for @chatDebateGuidedProposal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Je propose une version guidée (discussion pas à pas) à la place.'**
+  String get chatDebateGuidedProposal;
+
+  /// No description provided for @chatDebateContinueGuided.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer avec la version guidée'**
+  String get chatDebateContinueGuided;
+
+  /// No description provided for @chatDebateUserChoice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Je choisis la version guidée du débat.'**
+  String get chatDebateUserChoice;
+
+  /// No description provided for @chatImageGenerating.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'IA peint votre image...'**
+  String get chatImageGenerating;
+
+  /// No description provided for @chatImageGenerationError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le peintre a eu une panne de pinceaux... 🎨❌'**
+  String get chatImageGenerationError;
 }
 
 class _AppLocalizationsDelegate

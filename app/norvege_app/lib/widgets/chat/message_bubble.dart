@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../models/chat_message.dart';
 import '../../theme.dart';
-import '../../utils/audio_element_builder.dart'; // Import du Builder
+import '../../utils/audio_element_builder.dart';
+import '../../l10n/app_localizations.dart'; // <-- L'import vital !
 import 'quiz_message.dart';
+import 'image_description_message.dart';
 
 class MessageBubble extends StatelessWidget {
   final ChatMessage message;
@@ -19,26 +21,43 @@ class MessageBubble extends StatelessWidget {
     this.userLevel,
   });
 
-  String _processNorwegianTags(String rawText) {
-    // Regex qui cherche tout ce qui est entre [[ et ]]
+  // MAGIE 🪄 : On intercepte et on traduit le Markdown de l'IA
+  String _preprocessText(String rawText, AppLocalizations l10n) {
+    String text = rawText;
+
+    // 1. Traduction des clés brutes de la base de données
+    final Map<String, String> dbKeysToTranslate = {
+      'mode_fun': l10n.loginModeFun,
+      'mode_serious': l10n.loginModeSerious,
+      'mode_immersive': l10n.loginModeImmersive,
+      'mode_direct': l10n.loginModeDirect,
+      'mode_caring': l10n.loginModeCaring,
+      'unknown': l10n.loginLevelUnknown,
+    };
+
+    dbKeysToTranslate.forEach((key, translation) {
+      text = text.replaceAll(key, translation);
+    });
+
+    // 2. Traitement des tags audio (Votre code)
     final RegExp exp = RegExp(r'\[\[(.*?)\]\]');
-
-    return rawText.replaceAllMapped(exp, (Match m) {
+    text = text.replaceAllMapped(exp, (Match m) {
       final textContent = m[1] ?? "";
-
-      // 1. On garde le texte tel quel pour l'affichage (entre crochets)
-      // 2. On ENCODE le texte pour l'URL (entre parenthèses) pour éviter les erreurs d'espaces
       final encodedUrl = Uri.encodeComponent(textContent);
-
       return '[$textContent](tts:$encodedUrl)';
     });
+
+    return text;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isUser = message.isUser;
     final uiAction = message.metadata?['ui_action'];
-    final processedText = _processNorwegianTags(message.text);
+
+    // On nettoie et on traduit le texte avant de l'afficher !
+    final processedText = _preprocessText(message.text, l10n);
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -70,18 +89,14 @@ class MessageBubble extends StatelessWidget {
             MarkdownBody(
               data: processedText,
               selectable: true,
-              // C'EST ICI QUE LA MAGIE OPÈRE ✨
-              builders: {
-                'a':
-                    AudioElementBuilder(), // On branche notre builder sur les liens 'a'
-              },
+              builders: {'a': AudioElementBuilder()},
               styleSheet: MarkdownStyleSheet(
-                p: TextStyle(
+                p: const TextStyle(
                   color: AppColors.textDark,
                   fontSize: 16,
                   height: 1.4,
                 ),
-                tableBody: TextStyle(color: AppColors.textDark),
+                tableBody: const TextStyle(color: AppColors.textDark),
                 tableHead: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppColors.deepBlue,
@@ -98,25 +113,33 @@ class MessageBubble extends StatelessWidget {
             ),
             if (!isUser && uiAction != null) ...[
               const Divider(height: 20, color: AppColors.softGray),
-              // Special handling: Comprehension orale
-              if (uiAction['type'] == 'input' &&
+              if (uiAction['type'] == 'image_description' ||
+                  uiAction['image_prompt'] != null)
+                ImageDescriptionMessage(
+                  // Sécurité : si l'IA oublie le prompt, on met un paysage par défaut au lieu de planter
+                  imagePrompt:
+                      uiAction['image_prompt'] ??
+                      'A beautiful highly detailed landscape of a Norwegian fjord, cinematic lighting',
+                  placeholder: uiAction['placeholder'] ?? l10n.chatTypeHere,
+                  onReply: onReply,
+                  onSend: onSend,
+                )
+              else if (uiAction['type'] == 'input' &&
                   (uiAction['task'] == 'transcription' ||
                       uiAction['task'] == 'summary' ||
                       uiAction['audio_text'] != null ||
                       uiAction['audio_reference'] != null)) ...[
-                _buildComprehensionWidget(context, uiAction),
+                _buildComprehensionWidget(context, uiAction, l10n),
                 _buildInlineInput(
                   context,
-                  uiAction['placeholder'] ?? "Écrivez ici...",
+                  uiAction['placeholder'] ?? l10n.chatTypeHere,
                 ),
               ],
 
-              // Special handling: Debate with min level
               if (uiAction['type'] == 'input' &&
                   (uiAction['debate'] != null || uiAction['min_level'] != null))
-                _buildDebateWidget(context, uiAction),
+                _buildDebateWidget(context, uiAction, l10n),
 
-              // Default handlers
               if (uiAction['type'] == 'input' &&
                   uiAction['debate'] == null &&
                   uiAction['task'] == null &&
@@ -124,10 +147,12 @@ class MessageBubble extends StatelessWidget {
                   uiAction['audio_reference'] == null)
                 _buildInlineInput(
                   context,
-                  uiAction['placeholder'] ?? "Écrivez ici...",
+                  uiAction['placeholder'] ?? l10n.chatTypeHere,
                 ),
+
               if (uiAction['type'] == 'choice')
                 _buildInlineChoices(uiAction['options'] ?? []),
+
               if (uiAction['type'] == 'quiz')
                 QuizMessage(
                   questions: uiAction['questions'] ?? [],
@@ -144,7 +169,11 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildComprehensionWidget(BuildContext context, Map uiAction) {
+  Widget _buildComprehensionWidget(
+    BuildContext context,
+    Map uiAction,
+    AppLocalizations l10n,
+  ) {
     final String? audioRef =
         uiAction['audio_reference'] ?? uiAction['audio_text'];
     final String task = (uiAction['task'] ?? 'ecoute').toString();
@@ -155,7 +184,7 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Compréhension orale — tâche: $task',
+            '${l10n.chatComprehensionTask}$task',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
@@ -163,31 +192,29 @@ class MessageBubble extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Transcription de référence disponible.'),
+                Text(l10n.chatTranscriptionAvailable),
                 const SizedBox(height: 6),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: AppColors.deepBlue,
                   ),
-                  onPressed: () {
-                    // Place la transcription dans la zone de saisie pour que l'utilisateur puisse l'éditer
-                    onReply(audioRef);
-                  },
-                  child: const Text(
-                    'Ouvrir la transcription dans le champ de saisie',
-                  ),
+                  onPressed: () => onReply(audioRef),
+                  child: Text(l10n.chatOpenTranscription),
                 ),
               ],
             ),
-          if (audioRef == null)
-            Text('Écoute le passage et transcris ou résume selon la consigne.'),
+          if (audioRef == null) Text(l10n.chatListenInstruction),
         ],
       ),
     );
   }
 
-  Widget _buildDebateWidget(BuildContext context, Map uiAction) {
+  Widget _buildDebateWidget(
+    BuildContext context,
+    Map uiAction,
+    AppLocalizations l10n,
+  ) {
     final String minLevel =
         (uiAction['min_level'] ?? uiAction['debate']?['min_level'] ?? 'B1')
             .toString();
@@ -200,28 +227,24 @@ class MessageBubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Le débat nécessite le niveau $minLevel. Votre niveau actuel: ${userLevel ?? 'inconnu'}.',
+              '${l10n.chatDebateLevelRequired}$minLevel. ${l10n.chatDebateYourLevel}${userLevel ?? 'inconnu'}.',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Je propose une version guidée (discussion pas à pas) à la place.',
-            ),
+            Text(l10n.chatDebateGuidedProposal),
             const SizedBox(height: 8),
             ElevatedButton(
               onPressed: () {
-                final suggestion = 'Je choisis la version guidée du débat.';
+                final suggestion = l10n.chatDebateUserChoice;
                 onReply(suggestion);
                 onSend(suggestion);
               },
-              child: const Text('Continuer avec la version guidée'),
+              child: Text(l10n.chatDebateContinueGuided),
             ),
           ],
         ),
       );
     }
-
-    // Si autorisé, on laisse l'utilisateur répondre normalement (input builder sera affiché)
     return const SizedBox.shrink();
   }
 
@@ -264,9 +287,7 @@ class MessageBubble extends StatelessWidget {
                 ),
               ),
               onSubmitted: (value) {
-                if (value.trim().isNotEmpty) {
-                  onReply(value);
-                }
+                if (value.trim().isNotEmpty) onReply(value);
               },
             ),
           ),

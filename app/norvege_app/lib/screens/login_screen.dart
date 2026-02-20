@@ -16,8 +16,6 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   late LoginViewModel _viewModel;
-  late List<String> _levels = [];
-  late List<String> _allModes = [];
 
   @override
   void initState() {
@@ -75,11 +73,11 @@ class _LoginScreenState extends State<LoginScreen> {
     };
 
     final Map<String, String> modesMap = {
-      'fun': l10n.loginModeFun,
-      'serious': l10n.loginModeSerious,
-      'immersive': l10n.loginModeImmersive,
-      'direct': l10n.loginModeDirect,
-      'caring': l10n.loginModeCaring,
+      'mode_fun': l10n.loginModeFun,
+      'mode_serious': l10n.loginModeSerious,
+      'mode_immersive': l10n.loginModeImmersive,
+      'mode_direct': l10n.loginModeDirect,
+      'mode_caring': l10n.loginModeCaring,
     };
 
     // Sécurité : si le niveau est vide (premier lancement), on met 'unknown' par défaut

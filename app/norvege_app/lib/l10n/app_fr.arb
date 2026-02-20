@@ -68,5 +68,16 @@
     "levelMotivationB2": "Très fluide ! La Norvège n'a plus de secrets. 🇳🇴",
     "levelMotivationC1": "Niveau expert atteint ! Presque bilingue. 🎓",
     "levelMotivationC2": "Maîtrise totale. Gratulerer ! 👑",
-    "levelMotivationDefault": "Continuez comme ça ! 💪"
+    "levelMotivationDefault": "Continuez comme ça ! 💪",
+    "chatComprehensionTask": "Compréhension orale — tâche : ",
+    "chatTranscriptionAvailable": "Transcription de référence disponible.",
+    "chatOpenTranscription": "Ouvrir la transcription dans le champ de saisie",
+    "chatListenInstruction": "Écoute le passage et transcris ou résume selon la consigne.",
+    "chatDebateLevelRequired": "Le débat nécessite ce niveau : ",
+    "chatDebateYourLevel": "Votre niveau actuel : ",
+    "chatDebateGuidedProposal": "Je propose une version guidée (discussion pas à pas) à la place.",
+    "chatDebateContinueGuided": "Continuer avec la version guidée",
+    "chatDebateUserChoice": "Je choisis la version guidée du débat.",
+    "chatImageGenerating": "L'IA peint votre image...",
+    "chatImageGenerationError": "Le peintre a eu une panne de pinceaux... 🎨❌"
 }
