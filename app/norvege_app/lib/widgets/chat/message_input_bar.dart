@@ -5,7 +5,7 @@ import 'package:norvege_app/theme.dart';
 class MessageInputBar extends StatelessWidget {
   final TextEditingController controller;
   final bool isLoading;
-  final VoidCallback onSend;
+  final Function(String) onSend;
   final Function(String) onSubmitted;
 
   const MessageInputBar({
@@ -49,7 +49,7 @@ class MessageInputBar extends StatelessWidget {
             mini: true,
             backgroundColor: AppColors.vibrantOrange,
             elevation: 0,
-            onPressed: isLoading ? null : onSend,
+            onPressed: isLoading ? null : () => onSend(controller.text),
             child: const Icon(Icons.send, color: Colors.white),
           ),
         ],

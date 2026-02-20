@@ -5,6 +5,7 @@ import 'env.dart';
 import 'theme.dart';
 import 'screens/auth_gate.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // <-- 1. LE NOUVEL IMPORT
+import 'core/service_locator.dart'; // (Ajustez le chemin du dossier si nécessaire)
 
 final ValueNotifier<Locale> appLocale = ValueNotifier(const Locale('fr'));
 
@@ -22,6 +23,8 @@ Future<void> main() async {
 
   // 7. On initialise Supabase AVANT de lancer l'app
   await Supabase.initialize(url: Env.supabaseUrl, anonKey: Env.supabaseAnonKey);
+
+  setupServiceLocator();
 
   runApp(const NorvegeIAApp());
 }

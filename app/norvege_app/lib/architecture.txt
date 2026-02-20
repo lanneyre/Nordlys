@@ -1,6 +1,13 @@
-app/norvege_app/lib
+app/norvege_app/lib/
 ├── architecture.txt
+├── core
+│   ├── constants.dart
+│   ├── core.dart
+│   ├── error_handler.dart
+│   ├── service_locator.dart
+│   └── validation_helper.dart
 ├── env.dart
+├── envSample.dart
 ├── l10n
 │   ├── app_en.arb
 │   ├── app_fr.arb
@@ -21,9 +28,14 @@ app/norvege_app/lib
 │   └── tts_service.dart
 ├── theme.dart
 ├── utils
+│   ├── app_logger.dart
 │   ├── audio_element_builder.dart
 │   ├── nordlys_text_field.dart
 │   └── profile_avatar.dart
+├── view_models
+│   ├── chat_view_model.dart
+│   ├── login_view_model.dart
+│   └── profile_view_model.dart
 └── widgets
     ├── chat
     │   ├── empty_chat.dart
@@ -31,11 +43,13 @@ app/norvege_app/lib
     │   ├── message_input_bar.dart
     │   ├── norwegian_audio_button.dart
     │   └── quiz_message.dart
-    └── login
-        ├── login_form.dart
-        ├── login_header.dart
-        ├── login_text_field.dart
-        ├── section_title.dart
-        └── toggle_button.dart
+    ├── login
+    │   ├── login_form.dart
+    │   ├── login_header.dart
+    │   ├── login_text_field.dart
+    │   ├── section_title.dart
+    │   └── toggle_button.dart
+    └── profile
+        └── profile_section.dart
 
-9 directories, 30 files
+12 directories, 41 files

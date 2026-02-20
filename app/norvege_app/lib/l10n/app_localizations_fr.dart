@@ -202,4 +202,36 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get langueEn => '🇬🇧  Anglais';
+
+  @override
+  String get profileProgression => 'Votre progression';
+
+  @override
+  String get levelMotivationA0 =>
+      'Tout voyage commence par un premier pas ! 🚀';
+
+  @override
+  String get levelMotivationA1 =>
+      'Excellent départ ! Les bases s\'installent. 🧱';
+
+  @override
+  String get levelMotivationA2 =>
+      'Vous commencez à bien vous débrouiller ! 🗣️';
+
+  @override
+  String get levelMotivationB1 => 'Impressionnant ! Vous êtes indépendant. 🎒';
+
+  @override
+  String get levelMotivationB2 =>
+      'Très fluide ! La Norvège n\'a plus de secrets. 🇳🇴';
+
+  @override
+  String get levelMotivationC1 =>
+      'Niveau expert atteint ! Presque bilingue. 🎓';
+
+  @override
+  String get levelMotivationC2 => 'Maîtrise totale. Gratulerer ! 👑';
+
+  @override
+  String get levelMotivationDefault => 'Continuez comme ça ! 💪';
 }

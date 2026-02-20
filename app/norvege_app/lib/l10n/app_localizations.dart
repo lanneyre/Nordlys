@@ -457,6 +457,60 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'🇬🇧  Anglais'**
   String get langueEn;
+
+  /// No description provided for @profileProgression.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre progression'**
+  String get profileProgression;
+
+  /// No description provided for @levelMotivationA0.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout voyage commence par un premier pas ! 🚀'**
+  String get levelMotivationA0;
+
+  /// No description provided for @levelMotivationA1.
+  ///
+  /// In fr, this message translates to:
+  /// **'Excellent départ ! Les bases s\'installent. 🧱'**
+  String get levelMotivationA1;
+
+  /// No description provided for @levelMotivationA2.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous commencez à bien vous débrouiller ! 🗣️'**
+  String get levelMotivationA2;
+
+  /// No description provided for @levelMotivationB1.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impressionnant ! Vous êtes indépendant. 🎒'**
+  String get levelMotivationB1;
+
+  /// No description provided for @levelMotivationB2.
+  ///
+  /// In fr, this message translates to:
+  /// **'Très fluide ! La Norvège n\'a plus de secrets. 🇳🇴'**
+  String get levelMotivationB2;
+
+  /// No description provided for @levelMotivationC1.
+  ///
+  /// In fr, this message translates to:
+  /// **'Niveau expert atteint ! Presque bilingue. 🎓'**
+  String get levelMotivationC1;
+
+  /// No description provided for @levelMotivationC2.
+  ///
+  /// In fr, this message translates to:
+  /// **'Maîtrise totale. Gratulerer ! 👑'**
+  String get levelMotivationC2;
+
+  /// No description provided for @levelMotivationDefault.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuez comme ça ! 💪'**
+  String get levelMotivationDefault;
 }
 
 class _AppLocalizationsDelegate

@@ -59,6 +59,15 @@
     "chatTypeHere": "Type here...",
     "profileLanguage": "App language",
     "langueFr": "🇫🇷  French",
-    "langueEn": "🇬🇧  English"
+    "langueEn": "🇬🇧  English",
+    "profileProgression": "Your progress",
+    "levelMotivationA0": "Every journey begins with a single step! 🚀",
+    "levelMotivationA1": "Great start! The foundations are set. 🧱",
+    "levelMotivationA2": "You're starting to get the hang of it! 🗣️",
+    "levelMotivationB1": "Impressive! You are independent. 🎒",
+    "levelMotivationB2": "Very fluent! Norway has no more secrets. 🇳🇴",
+    "levelMotivationC1": "Expert level reached! Almost bilingual. 🎓",
+    "levelMotivationC2": "Total mastery. Gratulerer! 👑",
+    "levelMotivationDefault": "Keep it up! 💪"
 
 }

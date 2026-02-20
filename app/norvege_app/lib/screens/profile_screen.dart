@@ -1,15 +1,18 @@
-import 'dart:io';
+/// ProfileScreen - VERSION REFACTORISÉE
+/// Utilise ProfileViewModel pour la logique métier
+/// Maintenant plus lisible et testable
 
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:norvege_app/main.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/core.dart';
 import '../l10n/app_localizations.dart';
-import '../services/auth_service.dart';
+import '../main.dart';
 import '../theme.dart';
-import '../utils/app_logger.dart';
 import '../utils/nordlys_text_field.dart';
 import '../utils/profile_avatar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../widgets/profile/profile_section.dart';
+import '../view_models/profile_view_model.dart';
+import '../widgets/profile/level_dashboard.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,19 +22,31 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  late ProfileViewModel _viewModel;
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
-  final _authService = AuthService();
-  bool _hasUnsavedChanges = false;
+  late List<String> _allModes = [];
 
-  File?
-  _selectedAvatarFile; // L'image que l'utilisateur vient de choisir sur son téléphone
-  String? _currentAvatarUrl; // Le lien de l'image DÉJÀ sauvegardée sur Supabase
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = ProfileViewModel();
+    _loadData();
+  }
 
-  bool _isLoading = true;
-
-  late List<String> _allModes;
-  List<String> _selectedModes = [];
+  void _loadData() async {
+    try {
+      await _viewModel.loadProfile();
+      if (mounted) {
+        setState(() {
+          _nameController.text = _viewModel.username;
+          _targetController.text = _viewModel.targetLevel;
+        });
+      }
+    } catch (e) {
+      _showError(e);
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -46,161 +61,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ];
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
+  Future<void> _save() async {
+    // Validation
+    final nameError = ValidationHelper.validateUsername(_nameController.text);
+    final objectiveError = ValidationHelper.validateObjective(
+      _targetController.text,
+    );
+    final modesError = ValidationHelper.validateModeSelection(
+      _viewModel.selectedModes,
+    );
 
-  Future<void> _loadProfile() async {
-    try {
-      final data = await _authService.getProfile();
-      if (!mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      setState(() {
-        _nameController.text = data['username'] ?? '';
-        _targetController.text = data['target_level'] ?? '';
-
-        // On charge l'URL de l'image si elle existe dans la base de données !
-        _currentAvatarUrl = data['avatarUrl'];
-
-        String savedModes = data['learning_mode'] ?? l10n.loginModeFun;
-        _selectedModes = savedModes
-            .split(',')
-            .where((e) => e.isNotEmpty)
-            .toList();
-
-        if (_selectedModes.isEmpty) _selectedModes.add(_allModes[0]);
-
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.profileError(e.toString()))));
-    }
-  }
-
-  Future<void> _saveProfile() async {
-    if (!mounted) return;
-    final l10n = AppLocalizations.of(context)!;
-    if (_targetController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.profileObjectiveCannotBeEmpty)),
-      );
-      return;
-    }
-    if (_selectedModes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.profileSelectAtLeastOneStyle)),
-      );
+    if (nameError != null || objectiveError != null || modesError != null) {
+      _showError(nameError ?? objectiveError ?? modesError);
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
-      // On déclare la variable ici pour pouvoir l'utiliser plus bas
-      String? newAvatarUrl;
+      _viewModel.updateUsername(_nameController.text);
+      _viewModel.updateTargetLevel(_targetController.text);
+      await _viewModel.saveProfile();
 
-      // --- 1. SAUVEGARDE DE L'IMAGE (Si une nouvelle a été choisie) ---
-      if (_selectedAvatarFile != null) {
-        final supabase = Supabase.instance.client;
-        final user = supabase.auth.currentUser;
-
-        if (user != null) {
-          final fileExtension = _selectedAvatarFile!.path.split('.').last;
-          final fileName =
-              '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
-
-          // On envoie la NOUVELLE image
-          await supabase.storage
-              .from('avatars')
-              .upload(
-                fileName,
-                _selectedAvatarFile!,
-                fileOptions: const FileOptions(upsert: true),
-              );
-
-          newAvatarUrl = supabase.storage
-              .from('avatars')
-              .getPublicUrl(fileName);
-
-          // -----------------------------------------------------------------
-          // --- NOUVEAU : SUPPRESSION DE L'ANCIENNE IMAGE SUR LE CLOUD ---
-          // -----------------------------------------------------------------
-          if (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty) {
-            try {
-              // L'URL ressemble à ça : https://[...]/public/avatars/ID_USER/1234.jpg
-              // On va extraire juste : "ID_USER/1234.jpg"
-              final uri = Uri.parse(_currentAvatarUrl!);
-              final segments = uri.pathSegments;
-              final index = segments.indexOf('avatars');
-
-              if (index != -1 && index < segments.length - 1) {
-                // On récupère tout ce qui est après le mot "avatars"
-                final oldPath = segments.sublist(index + 1).join('/');
-
-                // On demande à Supabase de jeter le vieux fichier à la poubelle 🗑️
-                await supabase.storage.from('avatars').remove([oldPath]);
-                AppLogger.success(
-                  'Ancienne image supprimée avec succès : $oldPath',
-                );
-              }
-            } catch (e) {
-              AppLogger.error(
-                'Erreur lors du nettoyage de l\'ancienne image: $e',
-              );
-            }
-          }
-          // -----------------------------------------------------------------
-        }
-      }
-
-      // --- 2. SAUVEGARDE DU RESTE DU PROFIL ---
-      await _authService.updateProfile(
-        username: _nameController.text.trim(),
-        targetLevel: _targetController.text.trim(),
-        learningMode: _selectedModes.join(','),
-
-        // On envoie la nouvelle image, ou on garde l'ancienne si on n'a rien changé
-        avatarUrl: newAvatarUrl ?? _currentAvatarUrl,
-      );
-
-      // --- LA MODIFICATION EST ICI ---
       if (mounted) {
-        // 1. On arrête le chargement pour pouvoir re-cliquer plus tard
-        setState(() {
-          _isLoading = false;
-          _hasUnsavedChanges = false; // <-- On réinitialise la sécurité !
-          // On met à jour la variable locale avec la nouvelle image !
-          if (newAvatarUrl != null) {
-            _currentAvatarUrl = newAvatarUrl;
-          }
-        });
-
-        // 2. On affiche le message de succès
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.profileProfileUpdated),
-            backgroundColor: AppColors.messageOk,
-          ),
-        );
-
-        // 3. ON SUPPRIME la ligne Navigator.pop(context);
+        _showSuccess('Profil mis à jour avec succès!');
       }
     } catch (e) {
-      if (!mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.profileError(e.toString())),
-          backgroundColor: AppColors.messagekO,
-        ),
-      );
+      _showError(e);
     }
   }
 
@@ -214,14 +99,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         content: Text(l10n.profileUnsavedChangesWarning),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false), // Reste sur la page
+            onPressed: () => Navigator.pop(context, false),
             child: Text(
               l10n.profileCancel,
               style: const TextStyle(color: AppColors.lightBlue),
             ),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true), // Autorise la sortie
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.vibrantOrange,
             ),
@@ -235,32 +120,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showError(dynamic error) {
+    final l10n = AppLocalizations.of(context)!;
+    final appError = ErrorHandler.handleError(error, l10n);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(appError.message),
+          backgroundColor: AppColors.messagekO,
+        ),
+      );
+    }
+  }
+
+  void _showSuccess(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.messageOk),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
     return PopScope(
-      // On autorise la sortie naturelle SEULEMENT s'il n'y a pas de changements non sauvegardés
-      canPop: !_hasUnsavedChanges,
-
-      // Cette fonction se déclenche quand l'utilisateur essaie de faire "Retour"
+      canPop: !_viewModel.hasUnsavedChanges,
       onPopInvokedWithResult: (bool didPop, Object? result) async {
-        if (didPop) {
-          return; // Si la page a déjà réussi à se fermer, on ne fait rien
-        }
+        if (didPop) return;
 
-        // Sinon, on affiche notre pop-up
-        final bool shouldPop = await _showExitWarning() ?? false;
-
-        // Vérifier que le widget est toujours monté après l'opération async
+        final shouldPop = await _showExitWarning() ?? false;
         if (!mounted) return;
 
-        // Si l'utilisateur clique sur "Quitter sans sauvegarder", on force la fermeture
         if (shouldPop) {
           Navigator.of(context).pop();
+          _viewModel.resetChanges();
         }
       },
-
-      // Votre page actuelle ne change pas !
       child: Scaffold(
         backgroundColor: AppColors.deepBlue,
         appBar: AppBar(
@@ -272,164 +170,136 @@ class _ProfileScreenState extends State<ProfileScreen> {
           elevation: 0,
           iconTheme: const IconThemeData(color: AppColors.deepBlue),
         ),
-        body: _isLoading
+        body: _viewModel.isLoading
             ? const Center(
                 child: CircularProgressIndicator(
                   color: AppColors.vibrantOrange,
                 ),
               )
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(AppDimensions.paddingLarge),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // --- AVATAR ---
                     Center(
                       child: ProfileAvatar(
-                        radius: 70,
-                        // On passe l'URL de l'image chargée depuis la BDD
-                        initialImageUrl: _currentAvatarUrl,
+                        radius: AppDimensions.avatarRadiusDefault,
+                        initialImageUrl: _viewModel.currentAvatarUrl,
                         onImageSelected: (File imageFile) {
+                          _viewModel.setAvatarFile(imageFile);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.gapLarge),
+
+                    // --- SECTION 1: QUI ÊTES-VOUS ---
+                    ProfileSection(
+                      title: l10n.profileWhoAreYou,
+                      child: NordlysTextField(
+                        controller: _nameController,
+                        label: l10n.profileFirstNameOrNickname,
+                        prefixIcon: Icons.person_outline,
+                        keyboardType: TextInputType.text,
+                        onChanged: (val) => _viewModel.updateUsername(val),
+                      ),
+                    ),
+
+                    // --- SECTION 2: OBJECTIF ---
+                    ProfileSection(
+                      title: l10n.profileYourObjective,
+                      subtitle: l10n.profileDescribeYourGoal,
+                      child: NordlysTextField(
+                        controller: _targetController,
+                        label: l10n.profileFreeObjective,
+                        prefixIcon: Icons.flag_outlined,
+                        keyboardType: TextInputType.text,
+                        maxLines: 5,
+                        onChanged: (val) => _viewModel.updateTargetLevel(val),
+                      ),
+                    ),
+                    // --- NOUVELLE SECTION: PROGRESSION ---
+                    ProfileSection(
+                      title: l10n.profileProgression,
+                      child: LevelDashboard(
+                        currentLevel: _viewModel.currentLevel,
+                      ),
+                    ),
+                    // --- SECTION 3: STYLES D'APPRENTISSAGE ---
+                    ProfileSection(
+                      title: l10n.profileCoachingStyle,
+                      subtitle: l10n.profileSelectOneOrMoreStyles,
+                      child: ChipsGrid(
+                        items: _allModes,
+                        selectedItems: _viewModel.selectedModes,
+                        onItemSelected: (mode) {
                           setState(() {
-                            // On mémorise la photo choisie pour quand on cliquera sur "Enregistrer"
-                            _selectedAvatarFile = imageFile;
-                            _hasUnsavedChanges = true;
+                            _viewModel.toggleMode(mode);
                           });
                         },
                       ),
                     ),
-                    const SizedBox(height: 32),
 
-                    _buildSectionTitle(l10n.profileWhoAreYou),
-                    const SizedBox(height: 16),
-
-                    NordlysTextField(
-                      controller: _nameController,
-                      label: l10n.profileFirstNameOrNickname,
-                      prefixIcon: Icons.person_outline,
-                      keyboardType: TextInputType.text,
-                      onChanged: (val) =>
-                          setState(() => _hasUnsavedChanges = true),
-                    ),
-
-                    const SizedBox(height: 24),
-                    _buildSectionTitle(l10n.profileYourObjective),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.profileDescribeYourGoal,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-
-                    NordlysTextField(
-                      controller: _targetController,
-                      label: l10n.profileFreeObjective,
-                      prefixIcon: Icons.flag_outlined,
-                      keyboardType: TextInputType.text,
-                      maxLines: 5,
-                    ),
-
-                    const SizedBox(height: 24),
-                    _buildSectionTitle(l10n.profileCoachingStyle),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.profileSelectOneOrMoreStyles,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Wrap(
-                      spacing: 8.0,
-                      runSpacing: 4.0,
-                      children: _allModes.map((mode) {
-                        final isSelected = _selectedModes.contains(mode);
-                        return FilterChip(
-                          label: Text(mode),
-                          selected: isSelected,
-                          selectedColor: AppColors.vibrantOrange.withValues(
-                            alpha: 0.2,
-                          ),
-                          checkmarkColor: AppColors.vibrantOrange,
-                          labelStyle: TextStyle(
-                            color: isSelected
-                                ? AppColors.vibrantOrange
-                                : Colors.black87,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                          onSelected: (bool selected) {
-                            setState(() {
-                              if (selected) {
-                                _selectedModes.add(mode);
-                              } else {
-                                if (_selectedModes.length > 1) {
-                                  _selectedModes.remove(mode);
-                                }
-                              }
-                              _hasUnsavedChanges = true;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-
-                    // --- NOUVELLE SECTION : LANGUE ---
-                    const SizedBox(height: 24),
-                    _buildSectionTitle(l10n.profileLanguage),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButtonFormField<String>(
-                        // On lit la langue actuelle directement depuis la variable globale
-                        value: appLocale.value.languageCode,
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(
-                            Icons.language,
-                            color: AppColors.deepBlue,
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                    // --- SECTION 4: LANGUE ---
+                    ProfileSection(
+                      title: l10n.profileLanguage,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusMedium,
                           ),
                         ),
-                        items: [
-                          DropdownMenuItem(
-                            value: 'fr',
-                            child: Text(l10n.langueFr),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: appLocale.value.languageCode,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(
+                              Icons.language,
+                              color: AppColors.deepBlue,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: AppDimensions.paddingMedium,
+                              vertical: AppDimensions.paddingMedium,
+                            ),
                           ),
-                          DropdownMenuItem(
-                            value: 'en',
-                            child: Text(l10n.langueEn),
-                          ),
-                        ],
-                        onChanged: (String? newLang) async {
-                          if (newLang != null) {
-                            // On change la langue instantanément !
-                            appLocale.value = Locale(newLang);
-
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString('app_language', newLang);
-                            // On signale qu'il y a un changement non sauvegardé (optionnel,
-                            // car la langue change en temps réel de toute façon)
-                            setState(() => _hasUnsavedChanges = true);
-                          }
-                        },
+                          items: [
+                            DropdownMenuItem(
+                              value: 'fr',
+                              child: Text(l10n.langueFr),
+                            ),
+                            DropdownMenuItem(
+                              value: 'en',
+                              child: Text(l10n.langueEn),
+                            ),
+                          ],
+                          onChanged: (String? newLang) async {
+                            if (newLang != null) {
+                              appLocale.value = Locale(newLang);
+                              // Persister
+                            }
+                          },
+                        ),
                       ),
                     ),
 
-                    const SizedBox(height: 40),
+                    const SizedBox(height: AppDimensions.gapLarge),
+
+                    // --- BOUTON SAUVEGARDER ---
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _saveProfile,
-                        child: Text(l10n.profileSAVE),
+                        onPressed: _viewModel.isLoading ? null : _save,
+                        child: _viewModel.isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(l10n.profileSAVE),
                       ),
                     ),
                   ],
@@ -439,15 +309,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title.toUpperCase(),
-      style: const TextStyle(
-        color: AppColors.vibrantOrange,
-        fontWeight: FontWeight.bold,
-        fontSize: 13,
-        letterSpacing: 1.2,
-      ),
-    );
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _targetController.dispose();
+    super.dispose();
   }
 }
