@@ -91,11 +91,14 @@ class ChipsGrid extends StatelessWidget {
   final double spacing;
   final double runSpacing;
 
+  final Map<String, String> labels;
+
   const ChipsGrid({
     super.key,
     required this.items,
     required this.selectedItems,
     required this.onItemSelected,
+    required this.labels,
     this.spacing = 8.0,
     this.runSpacing = 4.0,
   });
@@ -108,7 +111,7 @@ class ChipsGrid extends StatelessWidget {
       children: items
           .map(
             (item) => LearningModeChip(
-              mode: item,
+              mode: labels[item] ?? item,
               isSelected: selectedItems.contains(item),
               onSelected: (_) => onItemSelected(item),
             ),

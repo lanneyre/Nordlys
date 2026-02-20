@@ -25,36 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _viewModel = LoginViewModel();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final l10n = AppLocalizations.of(context)!;
-
-    // Initialiser les niveaux
-    _levels = [
-      l10n.loginLevelUnknown,
-      l10n.loginLevelBeginner,
-      l10n.loginLevelFalseBeginner,
-      l10n.loginLevelIntermediate,
-      l10n.loginLevelAdvanced,
-    ];
-    if (_viewModel.selectedLevel.isEmpty && _levels.isNotEmpty) {
-      _viewModel.updateSelectedLevel(_levels[0]);
-    }
-
-    // Initialiser les modes
-    _allModes = [
-      l10n.loginModeFun,
-      l10n.loginModeSerious,
-      l10n.loginModeImmersive,
-      l10n.loginModeDirect,
-      l10n.loginModeCaring,
-    ];
-    if (_viewModel.selectedModes.isEmpty && _allModes.isNotEmpty) {
-      _viewModel.toggleMode();
-    }
-  }
-
   Future<void> _handleSubmit() async {
     final l10n = AppLocalizations.of(context)!;
     try {
@@ -94,6 +64,28 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    // --- DICTIONNAIRES (CLÉS -> TRADUCTIONS) ---
+    final Map<String, String> levelsMap = {
+      'unknown': l10n.loginLevelUnknown,
+      'a0': l10n.loginLevelBeginner,
+      'a1': l10n.loginLevelFalseBeginner,
+      'b1': l10n.loginLevelIntermediate,
+      'b2': l10n.loginLevelAdvanced,
+    };
+
+    final Map<String, String> modesMap = {
+      'fun': l10n.loginModeFun,
+      'serious': l10n.loginModeSerious,
+      'immersive': l10n.loginModeImmersive,
+      'direct': l10n.loginModeDirect,
+      'caring': l10n.loginModeCaring,
+    };
+
+    // Sécurité : si le niveau est vide (premier lancement), on met 'unknown' par défaut
+    if (_viewModel.selectedLevel.isEmpty) {
+      _viewModel.updateSelectedLevel('unknown');
+    }
     return Scaffold(
       body: Container(
         height: double.infinity,
@@ -122,18 +114,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           _viewModel.confirmPasswordController,
                       nameController: _viewModel.nameController,
                       objectiveController: _viewModel.objectiveController,
-                      selectedLevel: _viewModel.selectedLevel,
-                      levels: _levels,
-                      allModes: _allModes,
-                      selectedModes: _viewModel.selectedModes,
+                      levels: levelsMap.values.toList(),
+                      selectedLevel:
+                          levelsMap[_viewModel.selectedLevel] ??
+                          l10n.loginLevelUnknown,
                       isLogin: _viewModel.isLogin,
                       isLoading: _viewModel.isLoading,
-                      onLevelChanged: _viewModel.updateSelectedLevel,
-                      onModeSelected: (selected, mode) {
+                      onLevelChanged: (translatedLevel) {
+                        // On retrouve la clé ('a0') à partir du texte ('Débutant (A0)')
+                        final key = levelsMap.entries
+                            .firstWhere((e) => e.value == translatedLevel)
+                            .key;
+                        _viewModel.updateSelectedLevel(key);
+                      },
+                      allModes: modesMap.values.toList(),
+                      selectedModes: _viewModel.selectedModes
+                          .map((key) => modesMap[key] ?? key)
+                          .toList(),
+
+                      onModeSelected: (selected, translatedMode) {
+                        // On retrouve la clé ('fun') à partir du texte ('Ludique')
+                        final key = modesMap.entries
+                            .firstWhere((e) => e.value == translatedMode)
+                            .key;
+
                         if (selected) {
-                          _viewModel.toggleMode(mode);
-                        } else if (_viewModel.selectedModes.contains(mode)) {
-                          _viewModel.toggleMode(mode);
+                          _viewModel.toggleMode(key);
+                        } else if (_viewModel.selectedModes.contains(key)) {
+                          _viewModel.toggleMode(key);
                         }
                         setState(() {});
                       },

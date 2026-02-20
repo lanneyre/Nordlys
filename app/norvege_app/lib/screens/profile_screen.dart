@@ -25,7 +25,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late ProfileViewModel _viewModel;
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
-  late List<String> _allModes = [];
+  final List<String> _modeKeys = [
+    'mode_fun',
+    'mode_serious',
+    'mode_immersive',
+    'mode_direct',
+    'mode_caring',
+  ];
 
   @override
   void initState() {
@@ -46,19 +52,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       _showError(e);
     }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final l10n = AppLocalizations.of(context)!;
-    _allModes = [
-      l10n.loginModeFun,
-      l10n.loginModeSerious,
-      l10n.loginModeImmersive,
-      l10n.loginModeDirect,
-      l10n.loginModeCaring,
-    ];
   }
 
   Future<void> _save() async {
@@ -230,7 +223,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: l10n.profileCoachingStyle,
                       subtitle: l10n.profileSelectOneOrMoreStyles,
                       child: ChipsGrid(
-                        items: _allModes,
+                        items: _modeKeys,
+                        labels: {
+                          'mode_fun': l10n.loginModeFun,
+                          'mode_serious': l10n.loginModeSerious,
+                          'mode_immersive': l10n.loginModeImmersive,
+                          'mode_direct': l10n.loginModeDirect,
+                          'mode_caring': l10n.loginModeCaring,
+                        },
                         selectedItems: _viewModel.selectedModes,
                         onItemSelected: (mode) {
                           setState(() {
