@@ -1,5 +1,6 @@
 /// Fichier centralisé pour toutes les constantes de l'application
 /// Permet une maintenance facile et une configurationglobale
+library;
 
 class AppConstants {
   // --- SUPABASE ---

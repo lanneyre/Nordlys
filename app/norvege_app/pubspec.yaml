@@ -47,7 +47,8 @@ dependencies:
   
   # 🆕 Refactorisation: Injection de dépendances et State Management
   get_it: ^7.6.0                    # Service Locator pour les dépendances
-  provider: ^6.1.0                  # State Management (optionnel mais recommandé)
+  provider: ^6.1.0                  # State Management
+  go_router: ^14.0.0                # Navigation typée et routing robuste
 
 dev_dependencies:
   flutter_test:

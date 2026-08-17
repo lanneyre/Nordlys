@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:norvege_app/theme.dart';
 import 'package:norvege_app/widgets/login/login_form.dart';
@@ -6,6 +7,7 @@ import 'package:norvege_app/widgets/login/login_header.dart';
 import 'package:norvege_app/widgets/login/toggle_button.dart';
 import '../l10n/app_localizations.dart';
 import '../view_models/login_view_model.dart';
+import '../core/core.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,47 +18,43 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   late LoginViewModel _viewModel;
+  late AppErrorHandler _errorHandler;
 
   @override
   void initState() {
     super.initState();
     _viewModel = LoginViewModel();
+    _errorHandler = AppErrorHandler();
   }
 
   Future<void> _handleSubmit() async {
     final l10n = AppLocalizations.of(context)!;
     try {
       await _viewModel.submit();
+      
+      // Afficher message de succès pour signup
+      if (!_viewModel.isLogin && mounted) {
+        AppErrorHandler.showSuccessSnackbar(
+          context,
+          l10n.loginAccountConfiguredSuccessfully,
+        );
+      }
+      
+      // La redirection vers le chat se fera via le redirect du router
+      if (mounted) {
+        context.go('/chat');
+      }
     } on AuthException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.message),
-            backgroundColor: AppColors.messagekO,
-          ),
+        _errorHandler.handleError(
+          error,
+          customMessage: error.message,
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.loginError(error.toString())),
-            backgroundColor: AppColors.messagekO,
-          ),
-        );
+        _errorHandler.handleError(error);
       }
-    }
-
-    // Afficher message de succès pour signup
-    if (!_viewModel.isLogin && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.loginAccountConfiguredSuccessfully,
-          ),
-          backgroundColor: AppColors.messageOk,
-        ),
-      );
     }
   }
 

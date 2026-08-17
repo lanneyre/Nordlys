@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme.dart';
-import '../../services/tts_service.dart';
+import '../../core/service_locator.dart';  // ✅ Utilise ServiceLocator
 
 class NorwegianAudioButton extends StatefulWidget {
   final String text;
@@ -18,7 +18,7 @@ class NorwegianAudioButton extends StatefulWidget {
 }
 
 class _NorwegianAudioButtonState extends State<NorwegianAudioButton> {
-  final TtsService _ttsService = TtsService();
+  late final _ttsService = ServiceLocator.ttsService;  // ✅ Utilise ServiceLocator
   bool _isPlaying = false;
 
   @override

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../l10n/app_localizations.dart';
 import '../theme.dart';
 import '../widgets/chat/empty_chat.dart';
 import '../widgets/chat/message_bubble.dart';
 import '../widgets/chat/message_input_bar.dart';
-import 'profile_screen.dart';
 import '../view_models/chat_view_model.dart';
+import '../core/core.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -15,42 +17,45 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  late ChatViewModel _viewModel;
+  late AppErrorHandler _errorHandler;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = ChatViewModel();
-    _viewModel.initialize();
+    _errorHandler = AppErrorHandler();
+    
+    // Initialiser le ViewModel après le build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = context.read<ChatViewModel>();
+      viewModel.initialize().catchError((e) {
+        _errorHandler.handleError(e);
+      });
+    });
   }
 
   Future<void> _handleSendMessage(String text) async {
+    final viewModel = context.read<ChatViewModel>();
     try {
-      await _viewModel.sendMessage(text);
+      await viewModel.sendMessage(text);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              AppLocalizations.of(context)!.chatGenericError(e.toString()),
-            ),
-            backgroundColor: AppColors.messagekO,
-          ),
-        );
+        _errorHandler.handleError(e);
       }
     }
   }
 
   Future<void> _handleLogout() async {
+    final viewModel = context.read<ChatViewModel>();
     try {
-      await _viewModel.logout();
+      await viewModel.logout();
+      if (mounted) {
+        context.go('/');
+      }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur lors de la déconnexion: $e'),
-            backgroundColor: AppColors.messagekO,
-          ),
+        _errorHandler.handleError(
+          e,
+          customMessage: 'Erreur lors de la déconnexion. Veuillez réessayer.',
         );
       }
     }
@@ -79,12 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, color: AppColors.textDark),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
+            onPressed: () => context.push('/chat/profile'),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
@@ -92,35 +92,33 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ],
       ),
-      body: ValueListenableBuilder<Object?>(
-        valueListenable: _viewModel,
-        // ignore: unnecessary_underscores
-        builder: (context, _, __) {
+      body: Consumer<ChatViewModel>(
+        builder: (context, viewModel, _) {
           return Column(
             children: [
               Expanded(
-                child: _viewModel.messages.isEmpty
+                child: viewModel.messages.isEmpty
                     ? const EmptyChat()
                     : ListView.builder(
-                        controller: _viewModel.scrollController,
+                        controller: viewModel.scrollController,
                         padding: const EdgeInsets.all(16),
-                        itemCount: _viewModel.messages.length,
+                        itemCount: viewModel.messages.length,
                         itemBuilder: (context, index) {
                           return MessageBubble(
-                            message: _viewModel.messages[index],
+                            message: viewModel.messages[index],
                             onReply: (text) {
-                              _viewModel.messageController.text = text;
+                              viewModel.messageController.text = text;
                             },
                             onSend: (text) {
-                              _viewModel.messageController.text = text;
+                              viewModel.messageController.text = text;
                               _handleSendMessage(text);
                             },
-                            userLevel: _viewModel.currentLevel,
+                            userLevel: viewModel.currentLevel,
                           );
                         },
                       ),
               ),
-              if (_viewModel.isLoading)
+              if (viewModel.isLoading)
                 const Padding(
                   padding: EdgeInsets.all(8.0),
                   child: LinearProgressIndicator(
@@ -128,8 +126,8 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               MessageInputBar(
-                controller: _viewModel.messageController,
-                isLoading: _viewModel.isLoading,
+                controller: viewModel.messageController,
+                isLoading: viewModel.isLoading,
                 onSend: _handleSendMessage,
                 onSubmitted: _handleSendMessage,
               ),
@@ -142,7 +140,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    _viewModel.dispose();
     super.dispose();
   }
 }

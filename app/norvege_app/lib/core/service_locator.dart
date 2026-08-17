@@ -1,5 +1,6 @@
 /// Service Locator pour l'injection de dépendances
 /// Utilise GetIt pour centraliser toutes les instances de services
+library;
 
 import 'package:get_it/get_it.dart';
 import '../services/auth_service.dart';

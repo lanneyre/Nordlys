@@ -180,7 +180,6 @@ void main() {
 
     testWidgets('appel du callback onSend', (WidgetTester tester) async {
       String? capturedMessage;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -201,7 +200,6 @@ void main() {
 
     testWidgets('appel du callback onReply', (WidgetTester tester) async {
       String? capturedReply;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(

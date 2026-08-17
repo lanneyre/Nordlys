@@ -1,5 +1,6 @@
 /// Classe pour gérer les erreurs de manière cohérente
 /// Traduit les exceptions en messages utilisateur lisibles
+library;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../l10n/app_localizations.dart';

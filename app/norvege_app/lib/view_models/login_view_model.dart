@@ -1,6 +1,7 @@
 /// ViewModel pour LoginScreen
 /// Sépare la logique d'authentification de l'UI
 /// Facilite les tests unitaires
+library;
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';

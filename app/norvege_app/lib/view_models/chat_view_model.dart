@@ -1,11 +1,11 @@
 /// ViewModel pour ChatScreen
 /// Sépare la logique du chat de l'UI
 /// Gère les messages, l'IA et l'évaluation
+library;
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
-import '../services/ai_service.dart';
 import '../core/service_locator.dart';
 import '../utils/app_logger.dart';
 
@@ -22,7 +22,7 @@ class ChatViewModel extends ValueNotifier<Object?> {
 
   // --- SERVICES ---
   final _authService = ServiceLocator.authService;
-  final _aiService = AiService();
+  final _aiService = ServiceLocator.aiService;  // ✅ Utilise ServiceLocator
 
   // --- GETTERS ---
   bool get hasMessages => messages.isNotEmpty;

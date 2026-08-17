@@ -1,5 +1,6 @@
 /// Utilitaires de validation pour formulaires et données
 /// Centralisé pour éviter la duplication de logique
+library;
 
 import 'constants.dart';
 

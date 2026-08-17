@@ -1,6 +1,7 @@
 /// ViewModel pour ProfileScreen
 /// Sépare la logique métier de la UI
 /// Facilite les tests unitaires
+library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';

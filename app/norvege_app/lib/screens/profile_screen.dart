@@ -1,9 +1,11 @@
 /// ProfileScreen - VERSION REFACTORISÉE
 /// Utilise ProfileViewModel pour la logique métier
 /// Maintenant plus lisible et testable
+library;
 
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../core/core.dart';
 import '../l10n/app_localizations.dart';
 import '../main.dart';
@@ -23,6 +25,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   late ProfileViewModel _viewModel;
+  late AppErrorHandler _errorHandler;
   final _nameController = TextEditingController();
   final _targetController = TextEditingController();
   final List<String> _modeKeys = [
@@ -36,7 +39,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = ProfileViewModel();
+    _viewModel = context.profileViewModel;
+    _errorHandler = AppErrorHandler();
     _loadData();
   }
 
@@ -50,7 +54,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      _showError(e);
+      if (mounted) {
+        _errorHandler.handleError(e);
+      }
     }
   }
 
@@ -65,7 +71,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (nameError != null || objectiveError != null || modesError != null) {
-      _showError(nameError ?? objectiveError ?? modesError);
+      _errorHandler.handleError(
+        AppException(
+          message: nameError ?? objectiveError ?? modesError ?? 'Erreur de validation',
+          type: AppErrorType.validation,
+        ),
+      );
       return;
     }
 
@@ -75,10 +86,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await _viewModel.saveProfile();
 
       if (mounted) {
-        _showSuccess('Profil mis à jour avec succès!');
+        AppErrorHandler.showSuccessSnackbar(
+          context,
+          'Profil mis à jour avec succès!',
+        );
+        // Optionnel : fermer après succès
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && context.canPop()) {
+            context.pop();
+          }
+        });
       }
     } catch (e) {
-      _showError(e);
+      if (mounted) {
+        _errorHandler.handleError(e);
+      }
     }
   }
 
@@ -113,28 +135,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showError(dynamic error) {
-    final l10n = AppLocalizations.of(context)!;
-    final appError = ErrorHandler.handleError(error, l10n);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(appError.message),
-          backgroundColor: AppColors.messagekO,
-        ),
-      );
-    }
-  }
-
-  void _showSuccess(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.messageOk),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -145,10 +145,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (didPop) return;
 
         final shouldPop = await _showExitWarning() ?? false;
-        if (!mounted) return;
+        if (!context.mounted) return;
 
         if (shouldPop) {
-          Navigator.of(context).pop();
+          context.pop();
           _viewModel.resetChanges();
         }
       },

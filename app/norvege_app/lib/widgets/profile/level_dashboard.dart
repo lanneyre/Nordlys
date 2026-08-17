@@ -59,8 +59,8 @@ class LevelDashboard extends StatelessWidget {
                             shape: BoxShape.circle,
                             border: isCurrent
                                 ? Border.all(
-                                    color: AppColors.vibrantOrange.withOpacity(
-                                      0.3,
+                                    color: AppColors.vibrantOrange.withValues(
+                                      alpha: 0.3,
                                     ),
                                     width: 4,
                                   )

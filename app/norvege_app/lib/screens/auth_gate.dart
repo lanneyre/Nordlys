@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../services/auth_service.dart';
-import 'chat_screen.dart';
-import 'login_screen.dart';
+import 'package:go_router/go_router.dart';
+import '../core/service_locator.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -10,7 +9,7 @@ class AuthGate extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
-      stream: AuthService().authStateChanges, // On utilise notre Service
+      stream: ServiceLocator.authService.authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -20,11 +19,22 @@ class AuthGate extends StatelessWidget {
 
         final session = snapshot.data?.session;
 
+        // Redirect basé sur l'état de connexion
         if (session != null) {
-          return const ChatScreen();
+          // Rediriger vers le chat après la connexion
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go('/chat');
+          });
         } else {
-          return const LoginScreen();
+          // Rediriger vers le login si déconnecté
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go('/login');
+          });
         }
+
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator()),
+        );
       },
     );
   }
