@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+supabase
+pydantic
+pydantic-settings
+websockets
+python-dotenv
+PyJWT
+google-genai
+httpx

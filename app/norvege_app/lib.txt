@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+def is_git_repo(path: Path) -> bool:
+    return subprocess.run(
+        ["git", "-C", str(path), "rev-parse", "--is-inside-work-tree"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+def is_ignored(repo: Path, rel_path: str) -> bool:
+    # Vérifie si le chemin est ignoré par git, donc par tous les .gitignore du repo
+    result = subprocess.run(
+        ["git", "-C", str(repo), "check-ignore", "-q", "--stdin"],
+        input=(rel_path + "\n").encode("utf-8"),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+def generate_tree(repo: Path, output_file: Path):
+    lines = [f"{repo.name}/"]
+
+    for current, dirs, files in os.walk(repo):
+        current_path = Path(current)
+
+        # Ignore le dossier .git
+        dirs[:] = [
+            d for d in sorted(dirs)
+            if d != ".git"
+            and not is_ignored(repo, (current_path / d).relative_to(repo).as_posix())
+        ]
+
+        # Ajoute les dossiers visibles
+        for d in sorted(dirs):
+            rel = (current_path / d).relative_to(repo).as_posix()
+            lines.append(rel + "/")
+
+        # Ajoute les fichiers visibles
+        for f in sorted(files):
+            rel = (current_path / f).relative_to(repo).as_posix()
+            if not is_ignored(repo, rel):
+                lines.append(rel)
+
+    output_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Architecture générée dans : {output_file}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Utilisation : python3 generate_architecture.py <dossier> [fichier_sortie]")
+        sys.exit(1)
+
+    target = Path(sys.argv[1]).resolve()
+    if not target.exists() or not target.is_dir():
+        print(f"Dossier introuvable : {target}")
+        sys.exit(1)
+
+    output = Path(sys.argv[2]).resolve() if len(sys.argv) >= 3 else target / "architecture.txt"
+
+    if not is_git_repo(target):
+        print("Le dossier n'est pas un dépôt git. Le script ne peut pas utiliser les règles .gitignore.")
+        print("Tu peux quand même lancer le script dans un repo git, ou je peux te donner une version sans dépendre de git.")
+        sys.exit(1)
+
+    generate_tree(target, output)
+
+if __name__ == "__main__":
+    main()app/norvege_app/lib/
+├── architecture.txt
+├── core/
+│   ├── app_error_handler.dart
+│   ├── app_router.dart
+│   ├── constants.dart
+│   ├── core.dart
+│   ├── error_handler.dart
+│   ├── providers.dart
+│   ├── service_locator.dart
+│   └── validation_helper.dart
+├── env.dart
+├── env_sample.dart
+├── l10n/
+│   ├── app_en.arb
+│   ├── app_fr.arb
+│   ├── app_localizations.dart
+│   ├── app_localizations_en.dart
+│   └── app_localizations_fr.dart
+├── main.dart
+├── models/
+│   └── chat_message.dart
+├── screens/
+│   ├── auth_gate.dart
+│   ├── chat_screen.dart
+│   ├── login_screen.dart
+│   └── profile_screen.dart
+├── services/
+│   ├── ai_service.dart
+│   ├── auth_service.dart
+│   └── tts_service.dart
+├── theme.dart
+├── utils/
+│   ├── app_logger.dart
+│   ├── audio_element_builder.dart
+│   ├── nordlys_text_field.dart
+│   └── profile_avatar.dart
+├── view_models/
+│   ├── chat_view_model.dart
+│   ├── login_view_model.dart
+│   └── profile_view_model.dart
+└── widgets/
+    ├── chat/
+    │   ├── empty_chat.dart
+    │   ├── image_description_message.dart
+    │   ├── message_bubble.dart
+    │   ├── message_input_bar.dart
+    │   ├── norwegian_audio_button.dart
+    │   └── quiz_message.dart
+    └── login/
+        ├── login_form.dart
+        ├── login_header.dart
+        ├── login_text_field.dart
+        ├── section_title.dart
+        └── toggle_button.dart
+
+    └── profile/
+        ├── level_dashboard.dart
+        └── profile_section.dart

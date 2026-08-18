@@ -1,0 +1,40 @@
+norvege_api/
+├── app/
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py
+│   │   ├── security.py
+│   │   ├── supabase_client.py
+│   │   └── websocket_manager.py
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── chat_ws.py
+│   │   ├── lessons.py
+│   │   ├── profile.py
+│   │   └── tts.py
+│   ├── schemas/
+│   │   ├── __init__.py
+│   │   ├── chat_ws.py
+│   │   ├── lessons.py
+│   │   ├── profile.py
+│   │   └── tts.py
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── ai_tutor.py
+│   │   ├── content_generator.py
+│   │   └── history_service.py
+│   ├── __init__.py
+│   ├── main.py
+│   └── seed.py
+├── tests/
+│   ├── conftest.py
+│   ├── test_ai_tutor.py
+│   ├── test_chat_ws.py
+│   ├── test_lessons.py
+│   └── test_security.py
+├── .env.exemple
+├── .gitignore
+├── architecture.txt
+├── pytest.ini
+├── README.md
+└── requirements.txt
