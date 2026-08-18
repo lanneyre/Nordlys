@@ -6,7 +6,9 @@ class Settings(BaseSettings):
     SUPABASE_PUBLISHABLE_KEY: str
     SUPABASE_JWT_SECRET: str # Trouvable dans le dashboard Supabase (Settings > API)
     GEMINI_API_KEY: str
+    GEMINI_MODEL: str
     HF_API_KEY: str
+    HF_IMAGE_API_URL: str
     EVALUATION_COMPTEUR: int = 20  # Nombre de messages avant d'évaluer le niveau de l'apprenant
     
     class Config:

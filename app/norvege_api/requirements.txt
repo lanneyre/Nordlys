@@ -8,3 +8,5 @@ python-dotenv
 PyJWT
 google-genai
 httpx
+pytest 
+pytest-asyncio

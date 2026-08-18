@@ -1,0 +1,123 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.6.0
+rootdir: /home/lanneyre/Documents/Perso/Norvegian/app/norvege_api
+configfile: pytest.ini
+plugins: anyio-4.14.2, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 13 items
+
+tests/test_ai_tutor.py .                                                 [  7%]
+tests/test_chat_ws.py ..                                                 [ 23%]
+tests/test_lessons.py ..                                                 [ 38%]
+tests/test_resource_agent.py .F..                                        [ 69%]
+tests/test_scenario_agent.py .                                           [ 76%]
+tests/test_security.py ...                                               [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_generate_image_missing_api_key ______________________
+
+mock_settings = <MagicMock name='settings' id='139419129535120'>
+
+    @pytest.mark.asyncio
+    @patch('app.services.resource_agent.settings')
+    async def test_generate_image_missing_api_key(mock_settings):
+        """Teste que l'agent bloque la requête si la clé API est absente."""
+        # Simuler l'absence de clé
+        mock_settings.HUGGINGFACE_API_KEY = ""
+    
+        with pytest.raises(HTTPException) as exc_info:
+>           await generate_image("A beautiful Norwegian fjord")
+
+tests/test_resource_agent.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/resource_agent.py:22: in generate_image
+    response = await client.post(settings.HF_IMAGE_API_URL, headers=headers, json=payload, timeout=45.0)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+.venv/lib/python3.14/site-packages/httpx/_client.py:1527: in request
+    request = self.build_request(
+.venv/lib/python3.14/site-packages/httpx/_client.py:366: in build_request
+    url = self._merge_url(url)
+          ^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.14/site-packages/httpx/_client.py:396: in _merge_url
+    merge_url = URL(url)
+                ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <[AttributeError("'URL' object has no attribute '_uri_reference'") raised in repr()] URL object at 0x7ecd0baf95e0>
+url = <MagicMock name='settings.HF_IMAGE_API_URL' id='139419129537472'>
+kwargs = {}
+
+    def __init__(self, url: URL | str = "", **kwargs: typing.Any) -> None:
+        if kwargs:
+            allowed = {
+                "scheme": str,
+                "username": str,
+                "password": str,
+                "userinfo": bytes,
+                "host": str,
+                "port": int,
+                "netloc": bytes,
+                "path": str,
+                "query": bytes,
+                "raw_path": bytes,
+                "fragment": str,
+                "params": object,
+            }
+    
+            # Perform type checking for all supported keyword arguments.
+            for key, value in kwargs.items():
+                if key not in allowed:
+                    message = f"{key!r} is an invalid keyword argument for URL()"
+                    raise TypeError(message)
+                if value is not None and not isinstance(value, allowed[key]):
+                    expected = allowed[key].__name__
+                    seen = type(value).__name__
+                    message = f"Argument {key!r} must be {expected} but got {seen}"
+                    raise TypeError(message)
+                if isinstance(value, bytes):
+                    kwargs[key] = value.decode("ascii")
+    
+            if "params" in kwargs:
+                # Replace any "params" keyword with the raw "query" instead.
+                #
+                # Ensure that empty params use `kwargs["query"] = None` rather
+                # than `kwargs["query"] = ""`, so that generated URLs do not
+                # include an empty trailing "?".
+                params = kwargs.pop("params")
+                kwargs["query"] = None if not params else str(QueryParams(params))
+    
+        if isinstance(url, str):
+            self._uri_reference = urlparse(url, **kwargs)
+        elif isinstance(url, URL):
+            self._uri_reference = url._uri_reference.copy_with(**kwargs)
+        else:
+>           raise TypeError(
+                "Invalid type for url.  Expected str or httpx.URL,"
+                f" got {type(url)}: {url!r}"
+            )
+E           TypeError: Invalid type for url.  Expected str or httpx.URL, got <class 'unittest.mock.MagicMock'>: <MagicMock name='settings.HF_IMAGE_API_URL' id='139419129537472'>
+
+.venv/lib/python3.14/site-packages/httpx/_urls.py:121: TypeError
+=============================== warnings summary ===============================
+.venv/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /home/lanneyre/Documents/Perso/Norvegian/app/norvege_api/.venv/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+app/core/config.py:3
+  /home/lanneyre/Documents/Perso/Norvegian/app/norvege_api/app/core/config.py:3: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class Settings(BaseSettings):
+
+.venv/lib/python3.14/site-packages/google/genai/types.py:42
+  /home/lanneyre/Documents/Perso/Norvegian/app/norvege_api/.venv/lib/python3.14/site-packages/google/genai/types.py:42: DeprecationWarning: '_UnionGenericAlias' is deprecated and slated for removal in Python 3.17
+    VersionedUnionType = Union[builtin_types.UnionType, _UnionGenericAlias]
+
+tests/test_security.py::test_verify_invalid_signature
+  /home/lanneyre/Documents/Perso/Norvegian/app/norvege_api/.venv/lib/python3.14/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 12 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_resource_agent.py::test_generate_image_missing_api_key - Ty...
+=================== 1 failed, 12 passed, 4 warnings in 0.28s ===================

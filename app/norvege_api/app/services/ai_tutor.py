@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 from app.core.config import settings
 from app.core.supabase_client import supabase
-from app.schemas.chat import AgentResponse
+from app.schemas.chat_ws import AgentResponse
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -20,8 +20,35 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
     modes_array = [m.strip() for m in profile.get('learning_mode', 'Ludique 🎮').split(',')]
     current_style = random.choice(modes_array)
 
-    # 2. Construction de la consigne du HUD
+    # 2. Récupération du scénario actif (NOUVEAU)
+    scenario_res = supabase.table('active_scenarios').select('*').eq('user_id', user_id).execute()
+    active_scenario = scenario_res.data[0] if scenario_res.data else None
+    
+    scenario_instruction = ""
+    if active_scenario and active_scenario.get('steps'):
+        current_step_idx = active_scenario.get('current_step_index', 0)
+        steps = active_scenario.get('steps', [])
+        
+        if current_step_idx < len(steps):
+            current_step = steps[current_step_idx]
+            target_vocab = ", ".join(current_step.get('target_grammar_or_vocab', []))
+            
+            scenario_instruction = f"""
+            ---
+            **SCÉNARIO PÉDAGOGIQUE EN COURS :**
+            Objectif global : {active_scenario.get('objective')}
+            
+            **ÉTAPE ACTUELLE ({current_step_idx + 1}/{len(steps)}) :**
+            Activité : {current_step.get('activity_type')}
+            Consigne : {current_step.get('description')}
+            Cible (à faire utiliser par l'apprenant) : {target_vocab}
+            
+            Ton rôle est d'animer CETTE étape précise. Adapte la conversation pour y parvenir.
+            ---
+            """
+    # 3. Construction de la consigne du HUD       
     hud_instruction = ""
+    
     if show_hud:
         hud_instruction = (
             f"AFFICHE CE HUD AU DÉBUT DE TA RÉPONSE `reply` :\n"
@@ -36,6 +63,8 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
     system_prompt = f"""
     Tu es "Nordlys", le coach de {user_name} (Niveau {current_level}).
     Style actuel : {current_style}. Objectif : "{raw_objective}".
+    
+    {scenario_instruction}
     
     **INSTRUCTION D'AFFICHAGE :**
     {hud_instruction}
@@ -54,7 +83,7 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
     Dès que tu écris un mot en norvégien, encadre-le avec des doubles crochets: [[Tekst på norsk]].
     """
 
-    # 4. Conversion de l'historique
+    # 5. Conversion de l'historique
     contents = []
     for msg in chat_context:
         role = "user" if msg["role"] == "user" else "model"
@@ -62,9 +91,9 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
         
     contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_message)]))
 
-    # 5. L'Appel Magique (Gemini parse l'objet final de lui-même)
+    # 6. L'Appel Magique (Gemini parse l'objet final de lui-même)
     response = client.models.generate_content(
-        model='gemini-2.5-pro',
+        model=settings.GEMINI_MODEL,
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
@@ -76,54 +105,3 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
 
     # Gemini retourne un JSON parfait correspondant à AgentResponse
     return response.text
-
-async def auto_evaluate_level(user_id: str, chat_context: list[dict]):
-    """
-    Évalue silencieusement le niveau de l'utilisateur en analysant les derniers échanges
-    et met à jour son profil dans Supabase.
-    """
-    # 1. On ne prend que les 15-20 derniers messages pour ne pas fausser l'évaluation
-    # avec de très vieilles erreurs si l'apprenant a progressé.
-    recent_context = chat_context[-20:]
-    
-    # Formatage de la conversation en texte brut pour le LLM
-    conversation_text = "\n".join(
-        [f"{msg['role']}: {msg['content']}" for msg in recent_context]
-    )
-
-    system_prompt = """Tu es un examinateur expert en langue norvégienne.
-    Analyse la conversation suivante entre un utilisateur et son coach.
-    Ton SEUL objectif est de déterminer le niveau CECRL actuel de l'utilisateur (A0, A1, A2, B1, B2, C1 ou C2).
-    Tu dois te baser sur la complexité de son vocabulaire, sa grammaire et sa compréhension.
-
-    RÈGLE ABSOLUE : Ta réponse doit faire EXACTEMENT 2 caractères. Ne donne aucune explication.
-    Exemples de réponses valides : A0, A1, A2, B1, B2, C1, C2."""
-
-    try:
-        # 2. Appel à Gemini (Température très basse pour garantir la précision)
-        response = client.models.generate_content(
-            model='gemini-2.5-pro',
-            contents=conversation_text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.1,
-                max_output_tokens=5,
-            ),
-        )
-        
-        # Nettoyage de la réponse
-        level = response.text.strip().upper()
-
-        # 3. Validation stricte et mise à jour de la base de données
-        valid_levels = {"A0", "A1", "A2", "B1", "B2", "C1", "C2"}
-        if level in valid_levels:
-            def update_db():
-                supabase.table("profiles").update({"current_level": level}).eq("id", user_id).execute()
-            
-            # Exécution de la mise à jour réseau dans un thread séparé
-            await asyncio.to_thread(update_db)
-            
-    except Exception as e:
-        # L'évaluation est silencieuse : si elle échoue (timeout API, etc.), 
-        # on ignore l'erreur pour ne pas perturber le backend.
-        pass

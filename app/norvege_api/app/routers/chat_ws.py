@@ -6,8 +6,7 @@ from pydantic import ValidationError
 from app.core.websocket_manager import manager
 from app.core.security import verify_supabase_token
 from app.schemas.chat_ws import WebSocketAuthPayload
-from app.services import history_service
-from app.services import ai_tutor
+from app.services import history_service, ai_tutor, evaluator_agent
 
 from app.core.config import settings
 
@@ -50,17 +49,17 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             
             # --- APPEL À GEMINI ---
             # get_recent_messages() doit renvoyer la liste pour l'injecter ici
-            agent_json_string = await ai_tutor.generate_response(chat_context)
+            agent_json_string = await ai_tutor.generate_response(user_id=user_id, user_message=user_text, chat_context=chat_context, show_hud=False)
             
             # On parse le JSON garanti par Gemini pour l'ajouter proprement à l'historique
             agent_data = json.loads(agent_json_string)
-            agent_text = agent_data["content"]
+            agent_text = agent_data["reply"]
             
             # On ajoute la réponse au contexte en mémoire
             chat_context.append({"role": "agent", "content": agent_text})
             
             # On renvoie la structure complète (avec le flag is_correction) à Flutter
-            await websocket.send_text(agent_json_string)
+            await manager.send_personal_message(agent_json_string, websocket)
 
             # --- SAUVEGARDE ASYNCHRONE ---
             asyncio.create_task(
