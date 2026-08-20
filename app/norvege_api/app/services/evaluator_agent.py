@@ -56,15 +56,101 @@ async def auto_evaluate_level(user_id: str, chat_context: list[dict]):
         # L'évaluation est silencieuse, on ignore l'erreur
         pass
 
-async def evaluate_scenario_success(chat_history: str, objective: str) -> bool:
+async def evaluate_scenario_success(user_id: str, chat_history: list[dict], objective: str) -> bool:
     """
-    Analyse l'historique de la leçon terminée pour vérifier si l'objectif est atteint.
+    Analyse l'historique de la leçon terminée pour vérifier si l'objectif global est atteint.
+    Si NON, on pourrait déclencher un nouveau scénario de remédiation.
     """
-    system_prompt = """
-    Tu es un évaluateur intraitable. L'utilisateur devait atteindre l'objectif suivant : {objective}.
-    Lis la transcription de la leçon. L'apprenant a-t-il maîtrisé le sujet ?
+    # Formatage de l'historique en texte
+    conversation_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history])
+    
+    system_prompt = f"""
+    Tu es un évaluateur intraitable. L'utilisateur devait atteindre l'objectif suivant : "{objective}".
+    Lis la transcription de la leçon ci-dessous. L'apprenant a-t-il globalement maîtrisé le sujet ?
     Réponds UNIQUEMENT par "OUI" ou "NON".
     """
-    # Appel à Gemini (Température 0.0)
-    # Si "NON", on déclenche une fonction qui rappelle l'Agent Scénariste pour générer 
-    # un nouveau PedagogicalScenario de remédiation.
+    
+    try:
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=conversation_text,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.0, # Zéro créativité
+                max_output_tokens=5,
+            ),
+        )
+        
+        is_success = "OUI" in response.text.strip().upper()
+        
+        # Ici, si is_success est False, tu pourrais appeler :
+        # await scenario_agent.generate_and_save_scenario(..., objective=f"Révision : {objective}")
+        
+        return is_success
+        
+    except Exception as e:
+        return False
+    
+    
+async def evaluate_step_progression(user_id: str, user_message: str) -> bool:
+    """
+    Vérifie silencieusement si le message de l'apprenant valide l'étape en cours.
+    Si oui, incrémente le pointeur d'étape dans Supabase de manière stateless.
+    """
+    # 1. Récupération du scénario en cours
+    scenario_res = supabase.table('active_scenarios').select('*').eq('user_id', user_id).eq('status', 'in_progress').execute()
+    
+    if not scenario_res.data:
+        return False
+        
+    scenario = scenario_res.data[0]
+    current_index = scenario.get('current_step_index', 0)
+    steps = scenario.get('steps', [])
+    
+    # 2. Vérification de la validité de l'index
+    if current_index >= len(steps):
+        return False
+        
+    current_step = steps[current_index]
+    targets = current_step.get('target_grammar_or_vocab', [])
+    
+    if not targets:
+        return False
+
+    # 3. Évaluation sémantique par l'IA (tolère les fautes de frappe ou les variations grammaticales)
+    system_prompt = f"""
+    Tu es un évaluateur linguistique strict. 
+    Ton rôle est de vérifier si l'apprenant a réussi à utiliser les notions suivantes : {", ".join(targets)}.
+    
+    Message de l'apprenant : "{user_message}"
+    
+    Réponds UNIQUEMENT par "OUI" si la notion est globalement acquise et présente dans le message, sinon "NON".
+    """
+    
+    response = client.models.generate_content(
+        model=settings.GEMINI_MODEL,
+        contents="Évalue l'acquisition.",
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.0, # Zéro créativité, on veut un binaire
+        ),
+    )
+    
+    is_validated = "OUI" in response.text.strip().upper()
+    
+    # 4. Progression et sauvegarde (Stateless)
+    if is_validated:
+        new_index = current_index + 1
+        # Si on dépasse le nombre d'étapes, le scénario est terminé
+        status = 'completed' if new_index >= len(steps) else 'in_progress'
+        
+        def update_db():
+            supabase.table('active_scenarios')\
+                .update({'current_step_index': new_index, 'status': status})\
+                .eq('id', scenario['id'])\
+                .execute()
+                
+        # Exécution non-bloquante pour la WebSocket
+        await asyncio.to_thread(update_db)
+        
+    return is_validated

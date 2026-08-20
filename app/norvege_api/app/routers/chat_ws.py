@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from app.core.websocket_manager import manager
 from app.core.security import verify_supabase_token
 from app.schemas.chat_ws import WebSocketAuthPayload
-from app.services import history_service, ai_tutor, evaluator_agent
+from app.services import history_service, ai_tutor, evaluator_agent, resource_agent
 
 from app.core.config import settings
 
@@ -32,8 +32,14 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             # On récupère l'identifiant unique de l'utilisateur depuis le JWT
             user_id = user_data.get("sub") 
         except Exception as e:
-            await manager.send_personal_message("Erreur : Token invalide ou expiré.", websocket)
-            manager.disconnect(websocket)
+            # 1. AJOUTE CETTE LIGNE POUR VOIR LE VRAI PROBLÈME DANS LE TERMINAL PYTHON 👇
+            print(f"🔥 VRAIE ERREUR JWT : {repr(e)}") 
+            
+            # 2. Modifie temporairement le message renvoyé à Flutter pour l'inclure
+            await websocket.send_text(f"Erreur : Token invalide. Détail : {str(e)}")
+            await websocket.close()
+            # await manager.send_personal_message("Erreur : Token invalide ou expiré.", websocket)
+            # manager.disconnect(websocket)
             return
 
         # --- HYDRATATION DU CONTEXTE ---
@@ -44,6 +50,13 @@ async def websocket_chat_endpoint(websocket: WebSocket):
 
         while True:
             user_text = await websocket.receive_text()
+            
+            # --- ÉVALUATION DE LA PROGRESSION (NOUVEAU) ---
+            # On vérifie en tâche de fond si le message permet de valider l'étape
+            asyncio.create_task(
+                evaluator_agent.evaluate_step_progression(user_id, user_text)
+            )
+            
             # On ajoute le message de l'apprenant au contexte mémoire
             chat_context.append({"role": "user", "content": user_text})
             
@@ -53,7 +66,29 @@ async def websocket_chat_endpoint(websocket: WebSocket):
             
             # On parse le JSON garanti par Gemini pour l'ajouter proprement à l'historique
             agent_data = json.loads(agent_json_string)
-            agent_text = agent_data["reply"]
+            agent_text = agent_data.get("reply", "")
+            ui_action = agent_data.get("ui_action", {})
+            
+            # 2. APPEL À L'AGENT RESSOURCES (Interception)
+            if ui_action.get("type") == "image_description":
+                # On récupère le prompt généré par Gemini ou on met un fallback
+                image_prompt = ui_action.get("image_prompt", "A beautiful Norwegian landscape")
+                
+                try:
+                    # Génération de l'image en Base64
+                    base64_image = await resource_agent.generate_image(image_prompt)
+                    
+                    # Injection de l'image dans la structure de données
+                    agent_data["image_data"] = base64_image
+                    
+                    # On re-sérialise le JSON avec la nouvelle donnée
+                    agent_json_string = json.dumps(agent_data)
+                    
+                except Exception as e:
+                    # Sécurité : Si Hugging Face échoue (timeout, etc.), on modifie l'UI pour ne pas faire planter Flutter
+                    agent_data["ui_action"]["type"] = "input"
+                    agent_data["reply"] += "\n\n*(L'image n'a pas pu être chargée, mais décris-moi un paysage norvégien !)*"
+                    agent_json_string = json.dumps(agent_data)
             
             # On ajoute la réponse au contexte en mémoire
             chat_context.append({"role": "agent", "content": agent_text})

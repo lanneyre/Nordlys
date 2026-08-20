@@ -23,7 +23,7 @@ mock_settings = <MagicMock name='settings' id='139419129535120'>
     async def test_generate_image_missing_api_key(mock_settings):
         """Teste que l'agent bloque la requête si la clé API est absente."""
         # Simuler l'absence de clé
-        mock_settings.HUGGINGFACE_API_KEY = ""
+        mock_settings.HF_API_KEY = ""
     
         with pytest.raises(HTTPException) as exc_info:
 >           await generate_image("A beautiful Norwegian fjord")

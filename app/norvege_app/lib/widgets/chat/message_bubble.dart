@@ -116,11 +116,12 @@ class MessageBubble extends StatelessWidget {
               if (uiAction['type'] == 'image_description' ||
                   uiAction['image_prompt'] != null)
                 ImageDescriptionMessage(
-                  // Sécurité : si l'IA oublie le prompt, on met un paysage par défaut au lieu de planter
                   imagePrompt:
                       uiAction['image_prompt'] ??
-                      'A beautiful highly detailed landscape of a Norwegian fjord, cinematic lighting',
+                      'A beautiful highly detailed landscape of a Norwegian fjord',
                   placeholder: uiAction['placeholder'] ?? l10n.chatTypeHere,
+                  imageData:
+                      message.imageData, // <-- INJECTION DIRECTE DU BASE64
                   onReply: onReply,
                   onSend: onSend,
                 )

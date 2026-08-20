@@ -5,6 +5,7 @@ from google.genai import types
 from app.core.config import settings
 from app.core.supabase_client import supabase
 from app.schemas.chat_ws import AgentResponse
+from app.services.scenario_agent import generate_and_save_scenario
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -23,6 +24,20 @@ async def generate_response(user_id: str, user_message: str, chat_context: list[
     # 2. Récupération du scénario actif (NOUVEAU)
     scenario_res = supabase.table('active_scenarios').select('*').eq('user_id', user_id).execute()
     active_scenario = scenario_res.data[0] if scenario_res.data else None
+    
+    # --- 3. LE DÉCLENCHEUR AUTOMATIQUE (LE MAILLON MANQUANT) 👇 ---
+    if not active_scenario:
+        print(f"⚠️ Aucun scénario actif pour {user_name}. Génération en cours...")
+        
+        # On force la création d'un scénario via ton autre fichier
+        active_scenario = await generate_and_save_scenario(
+            user_id=user_id,
+            current_level=current_level,
+            target_level=raw_objective,
+            objective=profile.get('objective', 'Apprendre le norvégien')
+        )
+        print("✅ Nouveau scénario sauvegardé en base de données !")
+    # -------------------------------------------------------------
     
     scenario_instruction = ""
     if active_scenario and active_scenario.get('steps'):

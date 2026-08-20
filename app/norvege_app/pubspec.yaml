@@ -44,6 +44,8 @@ dependencies:
     sdk: flutter
   flutter_gen: ^5.12.0
   shared_preferences: ^2.5.4
+
+  web_socket_channel: ^3.0.0
   
   # 🆕 Refactorisation: Injection de dépendances et State Management
   get_it: ^7.6.0                    # Service Locator pour les dépendances

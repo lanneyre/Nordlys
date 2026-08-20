@@ -1,29 +1,26 @@
 import jwt
 from fastapi import WebSocketException, status
 from app.core.config import settings
+from app.core.supabase_client import supabase
+
+# URL publique où Supabase expose ses clés de sécurité (JWKS)
+jwks_url = f"{settings.SUPABASE_URL}/auth/v1/jwks"
+jwks_client = jwt.PyJWKClient(jwks_url, headers={"apikey": settings.SUPABASE_PUBLISHABLE_KEY})
 
 def verify_supabase_token(token: str) -> dict:
     """
-    Décode et valide le token JWT généré par Supabase.
-    Retourne le payload du token (qui contient l'ID de l'utilisateur) si valide.
-    Lève une exception WebSocket si le token est invalide ou expiré.
+    Décode et valide dynamiquement le token JWT généré par Supabase (compatible ECC/ES256).
     """
     try:
-        # Supabase utilise l'algorithme HS256 par défaut
-        payload = jwt.decode(
-            token, 
-            settings.SUPABASE_JWT_SECRET, 
-            algorithms=["HS256"],
-            options={"verify_aud": False} # Désactive la vérification de l'audience pour simplifier
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
+        # Le client Supabase s'occupe de valider le token sur ses propres serveurs
+        response = supabase.auth.get_user(token)
+        
+        # Si le token est valide, on retourne un dictionnaire contenant l'ID utilisateur
+        # (sous la clé "sub", comme le faisait PyJWT, pour ne pas casser ton code)
+        return {"sub": response.user.id}
+                
+    except Exception as e:
         raise WebSocketException(
             code=status.WS_1008_POLICY_VIOLATION, 
-            reason="Le token est expiré."
-        )
-    except jwt.InvalidTokenError:
-        raise WebSocketException(
-            code=status.WS_1008_POLICY_VIOLATION, 
-            reason="Token invalide."
+            reason=f"Token invalide ou expiré : {str(e)}"
         )

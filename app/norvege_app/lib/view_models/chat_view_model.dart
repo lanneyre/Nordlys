@@ -1,6 +1,3 @@
-/// ViewModel pour ChatScreen
-/// Sépare la logique du chat de l'UI
-/// Gère les messages, l'IA et l'évaluation
 library;
 
 import 'dart:convert';
@@ -8,9 +5,11 @@ import 'package:flutter/material.dart';
 import '../models/chat_message.dart';
 import '../core/service_locator.dart';
 import '../utils/app_logger.dart';
+import '../env.dart';
 
 class ChatViewModel extends ValueNotifier<Object?> {
   ChatViewModel() : super(null);
+
   // --- STATE ---
   final List<ChatMessage> messages = [];
   String? currentLevel;
@@ -22,25 +21,35 @@ class ChatViewModel extends ValueNotifier<Object?> {
 
   // --- SERVICES ---
   final _authService = ServiceLocator.authService;
-  final _aiService = ServiceLocator.aiService;  // ✅ Utilise ServiceLocator
+  final _aiService = ServiceLocator.aiService;
+
+  // URL de ton backend FastAPI (À adapter selon ton émulateur : 10.0.2.2 pour Android)
+  final String _wsUrl = Env.apiUrl;
 
   // --- GETTERS ---
   bool get hasMessages => messages.isNotEmpty;
   int get messageCount => messages.length;
+
   Future<void> initialize() async {
     try {
       isLoading = true;
       notifyListeners();
 
-      // Récupérer le niveau courant de l'utilisateur
-      try {
-        final profile = await _authService.getProfile();
-        currentLevel = profile['current_level']?.toString();
-      } catch (e) {
-        AppLogger.error('Impossible de récupérer le profil: $e');
-      }
+      final profile = await _authService.getProfile();
+      currentLevel = profile['current_level']?.toString();
 
-      await _startConversation();
+      // 1. On se connecte à la WebSocket
+      await _aiService.connect(_wsUrl);
+
+      // 2. On écoute le flux en permanence
+      _aiService.messageStream?.listen(
+        _handleIncomingMessage,
+        onError: (error) {
+          AppLogger.error('Erreur WebSocket: $error');
+          isLoading = false;
+          notifyListeners();
+        },
+      );
     } catch (e) {
       isLoading = false;
       AppLogger.error('Erreur lors de l\'initialisation: $e');
@@ -49,62 +58,52 @@ class ChatViewModel extends ValueNotifier<Object?> {
     }
   }
 
-  /// Démarrer la conversation avec l'IA
-  Future<void> _startConversation() async {
+  /// Traite les données brutes reçues de la WebSocket
+  void _handleIncomingMessage(dynamic rawData) {
     try {
-      final response = await _aiService.generateLesson(
-        'hello', // Message initial simple
-        saveToLog: false,
-      );
-      final parsed = _parseAiResponse(response['reply']);
+      final String messageStr = rawData as String;
+      // 1. Sécurité : On vérifie si c'est un message d'erreur en texte brut
+      if (!messageStr.trim().startsWith('{')) {
+        AppLogger.error("Message serveur refusé (non-JSON) : $messageStr");
+        isLoading = false;
+        notifyListeners();
 
-      _addMessage(
-        ChatMessage(
-          text: parsed['text'],
-          isUser: false,
-          metadata: parsed['metadata'],
-        ),
-      );
+        // Si le token a expiré, on peut forcer la déconnexion
+        if (messageStr.toLowerCase().contains('token')) {
+          logout();
+        }
+        return;
+      }
+
+      final Map<String, dynamic> data = jsonDecode(messageStr);
+
+      // Gestion du message de confirmation de connexion (si ton backend en envoie un)
+      if (data.containsKey('status') && data['status'] == 'connected') {
+        AppLogger.info("WebSocket connectée et authentifiée.");
+        isLoading = false;
+        notifyListeners();
+        // Optionnel : déclencher un premier message d'introduction
+        _aiService.sendMessage("hello");
+        return;
+      }
+
+      // Parsing du message de l'IA
+      final incomingMessage = ChatMessage.fromWebSocketJson(data);
+      _addMessage(incomingMessage);
 
       isLoading = false;
       notifyListeners();
     } catch (e) {
+      AppLogger.error('Erreur de parsing du message entrant: $e');
       isLoading = false;
-      AppLogger.error('Erreur au démarrage: $e');
       notifyListeners();
-      rethrow;
     }
   }
 
-  /// Parser la réponse de l'IA (texte + JSON metadata)
-  Map<String, dynamic> _parseAiResponse(String rawText) {
-    const delimiter = "@@@JSON@@@";
-
-    if (rawText.contains(delimiter)) {
-      final parts = rawText.split(delimiter);
-      final visibleText = parts[0].trim();
-      final jsonPart = parts[1].trim();
-
-      try {
-        final cleanJson = jsonPart
-            .replaceAll('```json', '')
-            .replaceAll('```', '')
-            .trim();
-        final parsed = jsonDecode(cleanJson);
-        return {'text': visibleText, 'metadata': parsed};
-      } catch (e) {
-        AppLogger.error('Erreur de parsing JSON: $e');
-      }
-    }
-    return {'text': rawText, 'metadata': null};
-  }
-
-  /// Ajouter un message à la liste
   void _addMessage(ChatMessage message) {
     messages.add(message);
     notifyListeners();
 
-    // Scroller vers le bas
     Future.delayed(const Duration(milliseconds: 100), () {
       if (scrollController.hasClients) {
         scrollController.animateTo(
@@ -116,87 +115,30 @@ class ChatViewModel extends ValueNotifier<Object?> {
     });
   }
 
-  /// Envoyer un message utilisateur
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
     final userText = text;
     messageController.clear();
 
+    // On affiche immédiatement le message de l'apprenant
     _addMessage(ChatMessage(text: userText, isUser: true));
 
-    try {
-      isLoading = true;
-      notifyListeners();
+    isLoading = true;
+    notifyListeners();
 
-      // Générer la réponse de l'IA
-      final response = await _aiService.generateLesson(userText);
-      final parsed = _parseAiResponse(response['reply']);
-      _addMessage(
-        ChatMessage(
-          text: parsed['text'],
-          isUser: false,
-          metadata: parsed['metadata'],
-        ),
-      );
-
-      // Vérifier si on doit déclencher une évaluation (tous les 20 messages)
-      if (messages.isNotEmpty && messages.length % 20 == 0) {
-        await _triggerInvisibleEvaluation();
-      }
-
-      isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      isLoading = false;
-      AppLogger.error('Erreur lors de l\'envoi: $e');
-      notifyListeners();
-      rethrow;
-    }
+    // On injecte le texte dans le tuyau de la WebSocket (pas de await !)
+    _aiService.sendMessage(userText);
   }
 
-  /// Déclencher une évaluation silencieuse du niveau
-  Future<void> _triggerInvisibleEvaluation() async {
-    AppLogger.info('🕵️‍♂️ Déclenchement de l\'évaluation silencieuse...');
-
-    try {
-      // Récupérer les 20 derniers messages
-      final chronologicalMessages = messages
-          .skip(messages.length > 20 ? messages.length - 20 : 0)
-          .toList();
-
-      // Évaluer le niveau utilisateur
-      final newLevel = await _aiService.evaluateUserLevel(
-        chronologicalMessages,
-      );
-
-      if (newLevel != null && newLevel.isNotEmpty) {
-        await _authService.updateCurrentLevel(newLevel);
-        currentLevel = newLevel;
-        notifyListeners();
-
-        AppLogger.success(
-          'Évaluation terminée ! Nouveau niveau CECRL : $newLevel',
-        );
-      }
-    } catch (e) {
-      AppLogger.error('Erreur pendant l\'évaluation silencieuse : $e');
-      // Ne pas relancer l'erreur, c'est un processus silencieux
-    }
-  }
-
-  /// Se déconnecter
   Future<void> logout() async {
-    try {
-      await _authService.signOut();
-    } catch (e) {
-      AppLogger.error('Erreur lors de la déconnexion: $e');
-      rethrow;
-    }
+    _aiService.disconnect();
+    await _authService.signOut();
   }
 
   @override
   void dispose() {
+    _aiService.disconnect();
     messageController.dispose();
     scrollController.dispose();
     super.dispose();

@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Nordlys API"
     SUPABASE_URL: str
     SUPABASE_PUBLISHABLE_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: str
     SUPABASE_JWT_SECRET: str # Trouvable dans le dashboard Supabase (Settings > API)
     GEMINI_API_KEY: str
     GEMINI_MODEL: str

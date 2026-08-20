@@ -21,8 +21,11 @@ norvege_api/
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── ai_tutor.py
-│   │   ├── content_generator.py
-│   │   └── history_service.py
+│   │   ├── evaluator_agent.py
+│   │   ├── history_service.py
+│   │   ├── resource_agent.py
+│   │   ├── scenario_agent.py
+│   │   └── tutor_agent.py
 │   ├── __init__.py
 │   ├── main.py
 │   └── seed.py
@@ -30,11 +33,15 @@ norvege_api/
 │   ├── conftest.py
 │   ├── test_ai_tutor.py
 │   ├── test_chat_ws.py
+│   ├── test_evaluator_agent.py
 │   ├── test_lessons.py
+│   ├── test_resource_agent.py
+│   ├── test_scenario_agent.py
 │   └── test_security.py
 ├── .env.exemple
 ├── .gitignore
 ├── architecture.txt
 ├── pytest.ini
+├── pytest.log
 ├── README.md
 └── requirements.txt

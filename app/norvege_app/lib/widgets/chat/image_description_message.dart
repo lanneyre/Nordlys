@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme.dart';
 import '../../l10n/app_localizations.dart';
 
 class ImageDescriptionMessage extends StatefulWidget {
   final String imagePrompt;
   final String placeholder;
+  final String? imageData; // Nouveau paramètre qui reçoit le Base64
   final Function(String) onReply;
   final Function(String) onSend;
 
@@ -15,6 +15,7 @@ class ImageDescriptionMessage extends StatefulWidget {
     super.key,
     required this.imagePrompt,
     required this.placeholder,
+    this.imageData,
     required this.onReply,
     required this.onSend,
   });
@@ -25,54 +26,25 @@ class ImageDescriptionMessage extends StatefulWidget {
 }
 
 class _ImageDescriptionMessageState extends State<ImageDescriptionMessage> {
-  bool _isLoading = true;
-  bool _hasError = false;
-  Uint8List? _imageBytes;
   final TextEditingController _controller = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    _generateImage();
-  }
-
-  Future<void> _generateImage() async {
+  /// Nettoie et décode la chaîne Base64 envoyée par FastAPI
+  Uint8List? _getDecodedImage() {
+    if (widget.imageData == null) return null;
     try {
-      // 1. Flutter demande gentiment à Supabase (qui va contourner Cloudflare)
-      final response = await Supabase.instance.client.functions.invoke(
-        'generate-image',
-        body: {'imagePrompt': widget.imagePrompt},
-      );
-
-      if (response.status == 200 && response.data != null) {
-        final String? base64Str = response.data['image_base64'];
-
-        if (base64Str != null) {
-          if (mounted) {
-            setState(() {
-              // 2. On transforme le texte reçu en vraie image
-              _imageBytes = base64Decode(base64Str);
-              _isLoading = false;
-            });
-          }
-          return;
-        }
-      }
-      throw Exception("L'image n'est pas arrivée.");
+      // Le backend envoie souvent sous le format "data:image/jpeg;base64,ZmFrZ..."
+      final parts = widget.imageData!.split(',');
+      final cleanBase64 = parts.length > 1 ? parts[1] : parts[0];
+      return base64Decode(cleanBase64);
     } catch (e) {
-      debugPrint("🚨 ERREUR SUPABASE/IMAGE : $e");
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-          _isLoading = false;
-        });
-      }
+      debugPrint("Erreur de décodage de l'image : $e");
+      return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final imageBytes = _getDecodedImage();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12.0),
@@ -86,13 +58,22 @@ class _ImageDescriptionMessageState extends State<ImageDescriptionMessage> {
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 200),
               decoration: BoxDecoration(color: Colors.grey[200]),
-              child: _buildImageContent(l10n),
+              child: imageBytes != null
+                  ? Image.memory(imageBytes, fit: BoxFit.cover)
+                  : const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 40,
+                        ),
+                      ),
+                    ),
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // --- ZONE DE TEXTE (Input) ---
+          // --- ZONE DE TEXTE ---
           Row(
             children: [
               Expanded(
@@ -114,9 +95,7 @@ class _ImageDescriptionMessageState extends State<ImageDescriptionMessage> {
                     ),
                   ),
                   onSubmitted: (value) {
-                    if (value.trim().isNotEmpty) {
-                      widget.onReply(value);
-                    }
+                    if (value.trim().isNotEmpty) widget.onReply(value);
                   },
                 ),
               ),
@@ -140,47 +119,6 @@ class _ImageDescriptionMessageState extends State<ImageDescriptionMessage> {
         ],
       ),
     );
-  }
-
-  Widget _buildImageContent(AppLocalizations l10n) {
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(color: AppColors.vibrantOrange),
-            const SizedBox(height: 16),
-            Text(
-              l10n.chatImageGenerating,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_hasError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Text(
-            l10n.chatImageGenerationError,
-            style: const TextStyle(color: Colors.redAccent),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-
-    if (_imageBytes != null) {
-      // Magique : Flutter sait dessiner du Base64 sans faire de requête HTTP !
-      return Image.memory(_imageBytes!, fit: BoxFit.cover);
-    }
-
-    return const SizedBox.shrink();
   }
 
   @override
